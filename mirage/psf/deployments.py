@@ -21,6 +21,8 @@ from astropy.io import fits
 import numpy as np
 import webbpsf
 
+from ..utils import file_utils
+
 
 def load_ote_from_deployment_yaml(deployments_file, out_dir, save=True):
     """Create a WebbPSF adjustable OTE object representing a perturbed OTE
@@ -51,7 +53,7 @@ def load_ote_from_deployment_yaml(deployments_file, out_dir, save=True):
     nc, ote = webbpsf.enable_adjustable_ote(nc)
 
     # Open existing file with previous deployments
-    with open(deployments_file) as f:
+    with file_utils.open(deployments_file) as f:
         deployment_errors = yaml.unsafe_load(f)
 
     # Create OTE object and list of segment tilts

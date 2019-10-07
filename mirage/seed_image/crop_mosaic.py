@@ -11,6 +11,8 @@ import argparse
 import numpy as np
 from astropy.io import fits
 
+from ..utils import file_utils
+
 class Extraction():
 
     def __init__(self):
@@ -26,7 +28,7 @@ class Extraction():
 
     def extract(self):
         # get WCS info from mosaic file
-        mosaic = fits.open(self.mosaicfile)
+        mosaic = file_utils.read_fits(self.mosaicfile)
         mosaic_ra_ref = mosaic[0].header['CRVAL1']
         mosaic_dec_ref = mosaic[0].header['CRVAL2']
         mosaic_x_ref = mosaic[0].header['CRPIX1']
@@ -194,4 +196,3 @@ if __name__ == '__main__':
     parser = ex.add_options(usage = usagestring)
     args = parser.parse_args(namespace=ex)
     ex.extract()
-

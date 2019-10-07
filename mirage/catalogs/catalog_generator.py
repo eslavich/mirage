@@ -24,10 +24,10 @@ tab.save()
 import copy
 import os
 
-from astropy.io import ascii
 from astropy.table import Table, Column
 import numpy as np
 
+from ..utils import file_utils
 
 class PointSourceCatalog():
     def __init__(self, ra=[], dec=[], x=[], y=[]):
@@ -164,9 +164,9 @@ class PointSourceCatalog():
             filter_file = 'niriss_dual_wheel_list.txt'
 
         if inst_name in ['nircam', 'niriss']:
-            filter_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../config/',
+            filter_file_path = file_utils.abspath(os.path.join(os.path.dirname(__file__), '../config/',
                                                             filter_file))
-            filter_table = ascii.read(filter_file_path)
+            filter_table = file_utils.read_ascii_table(filter_file_path)
             if filt_name.upper() not in filter_table['filter']:
                 raise ValueError("WARNING: {} is not a valid filter for {}.".format(filt_name,
                                                                                     inst_name.upper()))
@@ -512,7 +512,7 @@ def cat_from_file(filename, catalog_type='point_source'):
         raise ValueError(("Input catalog type {} is not one of the allowed types: {}"
                          .format(catalog_type, allowed_types)))
 
-    cat_table = ascii.read(filename)
+    cat_table = file_utils.read_ascii_table(filename)
 
     if 'position_pixels' in cat_table.meta['comments'][0:4]:
         xpos = 'x'

@@ -10,23 +10,21 @@ cosmic rays.
 import argparse
 import datetime
 import sys
-import glob
 import os
 import copy
 import re
 import shutil
+from yaml.scanner import ScannerError
 
 import math
-import yaml
 import time
 import pkg_resources
-import asdf
 import scipy.signal as s1
 from scipy.ndimage import rotate
 import numpy as np
 from photutils import detect_sources
 from astropy.coordinates import SkyCoord
-from astropy.io import fits, ascii
+from astropy.io import fits
 from astropy.table import Table, Column
 from astropy.modeling.models import Shift, Sersic2D, Polynomial2D, Mapping
 import astropy.units as u
@@ -43,6 +41,7 @@ from ..psf.psf_selection import get_gridded_psf_library, get_psf_wings
 from ..psf.segment_psfs import (get_gridded_segment_psf_library_list,
                                 get_segment_offset, get_segment_library_list)
 from ..utils.constants import grism_factor
+from ..utils import file_utils
 from mirage import version
 
 MIRAGE_VERSION = version.__version__
@@ -207,7 +206,7 @@ class Catalog_seed():
                                            os.path.join(self.params['simSignals']['psfpath'], 'psf_wings'))
 
             # Read in the file that defines PSF array sizes based on magnitude
-            self.psf_wing_sizes = ascii.read(self.params['simSignals']['psf_wing_threshold_file'])
+            self.psf_wing_sizes = file_utils.read_ascii_table(self.params['simSignals']['psf_wing_threshold_file'])
             max_wing_size = self.psf_wings.shape[0]
             too_large = np.where(np.array(self.psf_wing_sizes['number_of_pixels']) > max_wing_size)[0]
             if len(too_large) > 0:
@@ -333,9 +332,11 @@ class Catalog_seed():
         header : obj
             Header from 0th extension of data file
         """
-        data, header = fits.getdata(filename, header=True)
-        if len(data.shape) != 2:
-            data, header = fits.getdata(filename, 1)
+        with file_utils.open(filename, "rb") as f:
+            data, header = fits.getdata(f, header=True)
+            if len(data.shape) != 2:
+                f.seek(0)
+                data, header = fits.getdata(f, 1)
         return data, header
 
     def prepare_PAM(self):
@@ -355,7 +356,8 @@ class Catalog_seed():
 
         # Read in PAM
         try:
-            pam, header = fits.getdata(fname, header=True)
+            with file_utils.open(fname, "rb") as f:
+                pam, header = fits.getdata(f, header=True)
         except:
             raise IOError('WARNING: unable to read in {}'.format(fname))
 
@@ -771,7 +773,7 @@ class Catalog_seed():
                 are in units of pixels/hour. If false, arcsec/hour
             magsys -- magnitude system of the moving target magnitudes
         """
-        mtlist = ascii.read(filename, comment='#')
+        mtlist = file_utils.read_ascii_table(filename, comment='#')
 
         # Convert all relevant columns to floats
         for col in mtlist.colnames:
@@ -1642,7 +1644,7 @@ class Catalog_seed():
 
 
         # Make sure that a valid PSF path has been provided
-        if not os.path.isdir(self.params['simSignals']['psfpath']):
+        if not file_utils.isdir(self.params['simSignals']['psfpath']):
             raise ValueError('Invalid PSF path provided in YAML:',
                              self.params['simSignals']['psfpath'])
 
@@ -2510,7 +2512,7 @@ class Catalog_seed():
             Magnitude system of the source brightnesses (e.g. 'abmag')
         """
         try:
-            gtab = ascii.read(filename)
+            gtab = file_utils.read_ascii_table(filename)
             # Look at the header lines to see if inputs
             # are in units of pixels or RA, Dec
             pflag = False
@@ -2725,7 +2727,7 @@ class Catalog_seed():
         # Read in the galaxy source list
         try:
             # read table
-            gtab = ascii.read(filename)
+            gtab = file_utils.read_ascii_table(filename)
 
             # Look at the header lines to see if inputs
             # are in units of pixels or RA, Dec
@@ -3200,7 +3202,7 @@ class Catalog_seed():
         # Loop over input lines in the source list
         all_stamps = []
         for indexnum, values in zip(indexes, lines):
-            if not os.path.isfile(values['filename']):
+            if not file_utils.isfile(values['filename']):
                 raise FileNotFoundError('{} from extended source catalog does not exist.'.format(values['filename']))
             try:
                 pixelx, pixely, ra, dec, ra_str, dec_str = self.get_positions(values['x_or_RA'],
@@ -3214,9 +3216,11 @@ class Catalog_seed():
 
                 # Now find out how large the extended source image is, so we
                 # know if all, part, or none of it will fall in the field of view
-                ext_stamp = fits.getdata(values['filename'])
-                if len(ext_stamp.shape) != 2:
-                    ext_stamp = fits.getdata(values['filename'], 1)
+                with file_utils.open(values['filename'], "rb") as f:
+                    ext_stamp = fits.getdata(f)
+                    if len(ext_stamp.shape) != 2:
+                        f.seek(0)
+                        ext_stamp = fits.getdata(f, 1)
 
                 # print('Extended source location, x, y, ra, dec:', pixelx, pixely, ra, dec)
                 # print('extended source size:', ext_stamp.shape)
@@ -3350,7 +3354,7 @@ class Catalog_seed():
         x_pos_ang = self.calc_x_position_angle(pixelv2, pixelv3, pos_angle)
         print('extended position angle:', x_pos_ang)
         print('scipy rotate seems to be failing with no error raised')
-        rotated = rotate(stamp_image, x_pos_angle, mode='nearest')
+        rotated = rotate(stamp_image, x_pos_ang, mode='nearest')
         print('rotated shape: ', rotated.shape)
         return rotated
 
@@ -3500,7 +3504,7 @@ class Catalog_seed():
         # FUTURE WORK: If the countrates are left as 0, then pysynphot will
         # be used to calculate them later
         try:
-            cvals_tab = ascii.read(self.params['Reffiles']['phot'])
+            cvals_tab = file_utils.read_ascii_table(self.params['Reffiles']['phot'])
             instrumentfilternames = cvals_tab['filter'].data
             stringcountrates = cvals_tab['countrate_for_vegamag15'].data
             instrumentmag15countrates = [float(s) for s in stringcountrates]
@@ -3518,7 +3522,7 @@ class Catalog_seed():
 
         # Open the yaml file and check for the presence of extra colons
         adjust_file = False
-        with open(self.paramfile) as infile:
+        with file_utils.open(self.paramfile) as infile:
             read_data = infile.readlines()
             for i, line in enumerate(read_data):
                 for search_term in search_cats:
@@ -3550,8 +3554,7 @@ class Catalog_seed():
 
         # Load the yaml file
         try:
-            with open(self.paramfile, 'r') as infile:
-                self.params = yaml.safe_load(infile)
+            self.params = file_utils.read_yaml(self.paramfile)
         except (ScannerError, FileNotFoundError, IOError) as e:
             print(e)
 
@@ -3635,7 +3638,7 @@ class Catalog_seed():
             print('No galaxy catalog provided in yaml file.')
 
         # Read in list of zeropoints/photflam/photfnu
-        self.zps = ascii.read(self.params['Reffiles']['flux_cal'])
+        self.zps = file_utils.read_ascii_table(self.params['Reffiles']['flux_cal'])
 
         # Determine the instrument module and detector from the aperture name
         aper_name = self.params['Readout']['array_name']
@@ -3830,7 +3833,7 @@ class Catalog_seed():
 
         # Read in readout pattern definition file
         # and make sure the possible readout patterns are in upper case
-        self.readpatterns = ascii.read(self.params['Reffiles']['readpattdefs'])
+        self.readpatterns = file_utils.read_ascii_table(self.params['Reffiles']['readpattdefs'])
         self.readpatterns['name'] = [s.upper() for s in self.readpatterns['name']]
 
         # If the requested readout pattern is in the table of options,
@@ -3891,7 +3894,7 @@ class Catalog_seed():
         """
         rfile = self.params[rele[0]][rele[1]]
         if rfile.lower() != 'none':
-            c1 = os.path.isfile(rfile)
+            c1 = file_utils.isfile(rfile)
             if not c1:
                 raise FileNotFoundError(("WARNING: Unable to locate the {}, {} "
                                          "input file! Not present in {}"
@@ -3917,7 +3920,7 @@ class Catalog_seed():
 
         print(pth)
 
-        c1 = os.path.exists(pth)
+        c1 = file_utils.exists(pth)
         if not c1:
             raise NotADirectoryError(("WARNING: Unable to find the requested path "
                                       "{}. Not present in directory tree specified by "
@@ -3932,7 +3935,7 @@ class Catalog_seed():
         # source catalogs
         ifile = self.params[inparam[0]][inparam[1]]
         if ifile.lower() != 'none':
-            c = os.path.isfile(ifile)
+            c = file_utils.isfile(ifile)
             if not c:
                 raise FileNotFoundError(("WARNING: Unable to locate {} Specified "
                                          "by the {}:{} field in the input yaml file."
@@ -3956,7 +3959,7 @@ class Catalog_seed():
     #    # read in the file that contains a list of subarray names and positions on the detector
 
     #    try:
-    #        self.subdict = ascii.read(self.params['Reffiles']['subarray_defs'], data_start=1, header_start=0)
+    #        self.subdict = file_utils.read_ascii_table(self.params['Reffiles']['subarray_defs'], data_start=1, header_start=0)
     #    except:
     #        raise RuntimeError(("Error: could not read in subarray definitions file: {}"
     #                            .format(self.params['Reffiles']['subarray_defs'])))
@@ -3989,7 +3992,7 @@ class Catalog_seed():
     def read_filter_throughput(self, file):
         '''Read in the ascii file containing the filter
         throughput curve'''
-        tab = ascii.read(file)
+        tab = file_utils.read_ascii_table(file)
         return tab['Wavelength_microns'].data, tab['Throughput'].data
 
     def read_distortion_reffile(self):
@@ -3998,7 +4001,7 @@ class Catalog_seed():
         """
         coord_transform = None
         if self.runStep['astrometric']:
-            with asdf.open(self.params['Reffiles']['astrometric']) as dist_file:
+            with file_utils.read_asdf(self.params['Reffiles']['astrometric']) as dist_file:
                 coord_transform = dist_file.tree['model']
         # else:
         #    coord_transform = self.simple_coord_transform()

@@ -29,7 +29,6 @@ Use
 
 
 from copy import copy
-from glob import glob
 import os
 import warnings
 
@@ -39,7 +38,7 @@ from webbpsf.utils import to_griddedpsfmodel
 
 from mirage.utils.constants import NIRISS_PUPIL_WHEEL_FILTERS
 from mirage.utils.utils import expand_environment_variable
-
+from mirage.utils import file_utils
 
 
 def confirm_gridded_properties(filename, instrument, detector, filtername, pupilname,
@@ -90,7 +89,7 @@ def confirm_gridded_properties(filename, instrument, detector, filtername, pupil
                                                '{}/gridded_psf_library'.format(instrument.lower()))
 
     full_filename = os.path.join(file_path, filename)
-    with fits.open(full_filename) as hdulist:
+    with file_utils.read_fits(full_filename) as hdulist:
         header = hdulist[extname.upper()].header
 
     inst = header['INSTRUME']
@@ -188,7 +187,7 @@ def get_gridded_psf_library(instrument, detector, filtername, pupilname, wavefro
                                                                                         pupilname.lower(),
                                                                                         wavefront_error.lower(),
                                                                                         wavefront_error_group)
-    default_matches = glob(os.path.join(library_path, default_file_pattern))
+    default_matches = file_utils.glob(os.path.join(library_path, default_file_pattern))
 
     library_file = None
     if len(default_matches) == 1:
@@ -204,7 +203,7 @@ def get_gridded_psf_library(instrument, detector, filtername, pupilname, wavefro
         library_file = get_library_file(instrument, detector, filtername, pupilname,
                                         wavefront_error, wavefront_error_group, library_path)
 
-    print("PSFs will be generated using: {}".format(os.path.abspath(library_file)))
+    print("PSFs will be generated using: {}".format(file_utils.abspath(library_file)))
 
     try:
         library = to_griddedpsfmodel(library_file)
@@ -259,7 +258,7 @@ def get_library_file(instrument, detector, filt, pupil, wfe, wfe_group,
     matches : str
         Name of the PSF library file for the instrument and filter name
     """
-    psf_files = glob(os.path.join(library_path, '*.fits'))
+    psf_files = file_utils.glob(os.path.join(library_path, '*.fits'))
 
     # Determine if the PSF path is default or not
     mirage_dir = expand_environment_variable('MIRAGE_DATA')
@@ -286,7 +285,8 @@ def get_library_file(instrument, detector, filt, pupil, wfe, wfe_group,
 
     for filename in psf_files:
         try:
-            header = fits.getheader(filename)
+            with file_utils.open(filename, "rb") as f:
+                header = fits.getheader(f)
 
             # Determine if it is an ITM file
             itm_sim = header.get('ORIGIN', '') == 'ITM'
@@ -429,7 +429,7 @@ def get_psf_wings(instrument, detector, filtername, pupilname, wavefront_error, 
                                                                                   pupilname.lower(),
                                                                                   wavefront_error.lower(),
                                                                                   wavefront_error_group)
-    default_matches = glob(os.path.join(library_path, default_file_pattern))
+    default_matches = file_utils.glob(os.path.join(library_path, default_file_pattern))
 
     wings_file = None
     if len(default_matches) == 1:
@@ -447,7 +447,7 @@ def get_psf_wings(instrument, detector, filtername, pupilname, wavefront_error, 
                                       wavefront_error, wavefront_error_group, library_path, wings=True)
 
     print("PSF wings will be from: {}".format(os.path.basename(wings_file)))
-    with fits.open(wings_file) as hdulist:
+    with file_utils.read_fits(wings_file) as hdulist:
         psf_wing = hdulist['DET_DIST'].data
     # Crop the outer row and column in order to remove any potential edge
     # effects leftover from creation
@@ -474,8 +474,10 @@ def _load_itm_library(library_file):
     library : photutils.griddedPSFModel
         Object containing PSF library
     """
-    data = fits.getdata(library_file)
-    hdr = fits.getheader(library_file)
+    with file_utils.open(library_file, "rb") as f:
+        data = fits.getdata(f)
+        f.seek(0)
+        hdr = fits.getheader(f)
     if data.shape == (2048, 2048):
         # TODO: Remove when Shannon adds her 3rd dimension check
         # Add (empty) 3rd dimension to the data

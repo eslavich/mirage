@@ -25,6 +25,7 @@ from mirage.catalogs.catalog_generator import PointSourceCatalog, GalaxyCatalog,
     ExtendedCatalog, MovingPointSourceCatalog, MovingExtendedCatalog, \
     MovingSersicCatalog
 from mirage.utils.utils import ensure_dir_exists
+from mirage.utils import file_utils
 
 
 def create_basic_exposure_list(xml_file, pointing_file):
@@ -823,7 +824,8 @@ def read_standard_magnitudes():
     #
     module_path = pkg_resources.resource_filename('mirage', '')
     standard_mag_file = os.path.join(module_path, 'config/magslist_bosz_normal_mirage.new')
-    with open(standard_mag_file, 'r') as infile:
+
+    with file_utils.open(standard_mag_file, 'r') as infile:
         lines = infile.readlines()
 
     standard_magnitudes = np.loadtxt(standard_mag_file, comments='#')

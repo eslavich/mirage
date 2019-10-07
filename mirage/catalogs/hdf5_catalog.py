@@ -26,7 +26,7 @@ import astropy.units as u
 import h5py
 
 from mirage.utils.constants import FLAMBDA_CGS_UNITS, FLAMBDA_MKS_UNITS, FNU_CGS_UNITS, FNU_MKS_UNITS
-
+from mirage.utils import file_utils
 
 def open(filename):
     """Read in contents of an hdf5 file
@@ -48,7 +48,7 @@ def open(filename):
         'fluxes' is an astropy.units Quantity composed of a list of flux values with flux unit
     """
     contents = {}
-    with h5py.File(filename, 'r') as file_obj:
+    with file_utils.read_hdf5(filename) as file_obj:
         no_wave_units = False
         no_flux_units = False
         for key in file_obj.keys():
@@ -84,7 +84,7 @@ def open(filename):
                     waves = waves.to(u.micron, equivalencies=u.spectral())
                 else:
                     raise ValueError("Wavelength units of {} in dataset {} are not compatible with microns."
-                                     .format(wave_units, key))
+                                    .format(wave_units, key))
             if flux_units != FLAMBDA_CGS_UNITS:
                 if flux_units.is_equivalent(FLAMBDA_CGS_UNITS):
                     fluxes = fluxes.to(FLAMBDA_CGS_UNITS)
@@ -94,7 +94,7 @@ def open(filename):
                     pass
                 else:
                     raise ValueError("Flux density units of {} in dataset {} are not compatible with f_lambda."
-                                     .format(flux_units, key))
+                                    .format(flux_units, key))
 
             contents[int(key)] = {'wavelengths': waves, 'fluxes': fluxes}
     if no_wave_units:

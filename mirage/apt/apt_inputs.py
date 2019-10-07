@@ -48,11 +48,9 @@ from astropy.table import Table, vstack
 from astropy.io import ascii
 import numpy as np
 from pysiaf import rotations
-import yaml
 
 from . import read_apt_xml
-from ..utils import siaf_interface, constants
-
+from ..utils import siaf_interface, constants, file_utils
 
 class AptInput:
     """Summary
@@ -81,7 +79,7 @@ class AptInput:
         default_date = '2020-10-14'
 
         if self.epoch_list is not None:
-            epochs = ascii.read(self.epoch_list, header_start=0, data_start=1)
+            epochs = file_utils.read_ascii_table(self.epoch_list, header_start=0, data_start=1)
         else:
             epochs = Table()
             epochs['observation'] = intab['obs_label']
@@ -123,8 +121,7 @@ class AptInput:
             yaml file added.
 
         """
-        with open(self.observation_list_file, 'r') as infile:
-            self.obstab = yaml.safe_load(infile)
+        self.obstab = file_utils.read_yaml(self.observation_list_file)
 
         OBSERVATION_LIST_FIELDS = 'Date PAV3 Filter PointSourceCatalog GalaxyCatalog ' \
                                   'ExtendedCatalog ExtendedScale ExtendedCenter MovingTargetList ' \
@@ -260,12 +257,12 @@ class AptInput:
 
         """
         # Expand paths to full paths
-        # self.input_xml = os.path.abspath(self.input_xml)
-        # self.pointing_file = os.path.abspath(self.pointing_file)
+        # self.input_xml = file_utils.abspath(self.input_xml)
+        # self.pointing_file = file_utils.abspath(self.pointing_file)
         if self.output_csv is not None:
-            self.output_csv = os.path.abspath(self.output_csv)
+            self.output_csv = file_utils.abspath(self.output_csv)
         if self.observation_list_file is not None:
-            self.observation_list_file = os.path.abspath(self.observation_list_file)
+            self.observation_list_file = file_utils.abspath(self.observation_list_file)
 
         # main_dir = os.path.split(self.input_xml)[0]
 
@@ -492,7 +489,7 @@ class AptInput:
         if in_path.lower() == 'none':
             return in_path
         else:
-            return os.path.abspath(os.path.expandvars(in_path))
+            return file_utils.abspath(in_path)
 
     def get_pointing_info(self, file, propid=0, verbose=False):
         """Read in information from APT's pointing file.
@@ -549,7 +546,7 @@ class AptInput:
         seq_id = []
 
         act_counter = 1
-        with open(file) as f:
+        with file_utils.open(file) as f:
             for line in f:
 
                 # skip comments and new lines

@@ -20,6 +20,8 @@ grism_source_image
 import sys
 import yaml
 
+from ..utils import file_utils
+
 
 class YamlUpdate():
     def __init__(self):
@@ -31,8 +33,7 @@ class YamlUpdate():
 
     def read_yaml(self,file):
         try:
-            with open(file,'r') as f:
-                data = yaml.safe_load(f)
+            data = file_utils.read_yaml(file)
         except:
             print("WARNING: unable to open {}".format(self.paramfile))
             sys.exit()

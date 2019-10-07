@@ -94,14 +94,12 @@ import sys
 import os
 import argparse
 from copy import deepcopy
-from glob import glob
-from copy import deepcopy
 import datetime
 import warnings
 
 from astropy.time import Time, TimeDelta
 from astropy.table import Table
-from astropy.io import ascii, fits
+from astropy.io import fits
 import numpy as np
 import pkg_resources
 import pysiaf
@@ -113,6 +111,7 @@ from .generate_observationlist import get_observation_dict
 from ..constants import NIRISS_PUPIL_WHEEL_ELEMENTS, NIRISS_FILTER_WHEEL_ELEMENTS
 from ..utils.constants import CRDS_FILE_TYPES
 from ..utils import utils
+from ..utils import file_utils
 
 ENV_VAR = 'MIRAGE_DATA'
 
@@ -262,38 +261,38 @@ class SimInput:
             if self.point_source[i] is not None:
                 # In here, we assume the user provided a catalog to go with each filter
                 # so now we need to find the filter for each entry and generate a list that makes sense
-                self.info['point_source'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.point_source, 'point source')))
+                self.info['point_source'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.point_source, 'point source'))
             else:
                 self.info['point_source'][i] = None
             if self.galaxyListFile[i] is not None:
-                self.info['galaxyListFile'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.galaxyListFile, 'galaxy')))
+                self.info['galaxyListFile'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.galaxyListFile, 'galaxy'))
             else:
                 self.info['galaxyListFile'][i] = None
             if self.extended[i] is not None:
-                self.info['extended'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.extended, 'extended')))
+                self.info['extended'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.extended, 'extended'))
             else:
                 self.info['extended'][i] = None
             if self.movingTarg[i] is not None:
-                self.info['movingTarg'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.movingTarg, 'moving point source target')))
+                self.info['movingTarg'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.movingTarg, 'moving point source target'))
             else:
                 self.info['movingTarg'][i] = None
             if self.movingTargSersic[i] is not None:
-                self.info['movingTargSersic'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.movingTargSersic, 'moving sersic target')))
+                self.info['movingTargSersic'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.movingTargSersic, 'moving sersic target'))
             else:
                 self.info['movingTargSersic'][i] = None
             if self.movingTargExtended[i] is not None:
-                self.info['movingTargExtended'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.movingTargExtended, 'moving extended target')))
+                self.info['movingTargExtended'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.movingTargExtended, 'moving extended target'))
             else:
                 self.info['movingTargExtended'][i] = None
             if self.movingTargToTrack[i] is not None:
-                self.info['movingTargToTrack'][i] = os.path.abspath(os.path.expandvars(
-                    self.catalog_match(filt, pup, self.movingTargToTrack, 'non-sidereal moving target')))
+                self.info['movingTargToTrack'][i] = file_utils.abspath(
+                    self.catalog_match(filt, pup, self.movingTargToTrack, 'non-sidereal moving target'))
             else:
                 self.info['movingTargToTrack'][i] = None
         if self.convolveExtended is True:
@@ -552,7 +551,7 @@ class SimInput:
 
         elif self.table_file is not None:
             print('Reading table file: {}'.format(self.table_file))
-            info = ascii.read(self.table_file)
+            info = file_utils.read_ascii_table(self.table_file)
             self.info = self.table_to_dict(info)
             final_file = self.table_file + '_with_yaml_parameters.csv'
 
@@ -811,7 +810,8 @@ class SimInput:
            lists whether the kernel needs to be inverted or not.
         """
         for ifile in inputipc:
-            kernel = fits.getdata(ifile)
+            with file_utils.open(ifile, "rb") as f:
+                kernel = fits.getdata(f)
             kshape = kernel.shape
 
             # If kernel is 4 dimensional, extract the 3x3 kernel associated
@@ -877,9 +877,9 @@ class SimInput:
             Path to input file name
         """
         if filename is not None:
-            return ascii.read(filename)
+            return file_utils.read_ascii_table(filename)
 
-        tab = ascii.read(self.readpatt_def_file)
+        tab = file_utils.read_ascii_table(self.readpatt_def_file)
         return tab
 
     def get_reffile(self, refs, detector):
@@ -918,9 +918,9 @@ class SimInput:
             Path to input file name
         """
         if filename is not None:
-            return ascii.read(filename)
+            return file_utils.read_ascii_table(filename)
 
-        sub = ascii.read(self.subarray_def_file)
+        sub = file_utils.read_ascii_table(self.subarray_def_file)
         return sub
 
     def info_for_all_observations(self):
@@ -996,7 +996,7 @@ class SimInput:
         """
         dirname, basename = os.path.split(filename)
         inverted_name = os.path.join(dirname, "Kernel_to_add_IPC_effects_from_{}".format(basename))
-        return inverted_name, not os.path.isfile(inverted_name)
+        return inverted_name, not file_utils.isfile(inverted_name)
 
     def make_output_names(self):
         """Create output yaml file names to go with all of the
@@ -1017,7 +1017,7 @@ class SimInput:
                 mode = self.info['Mode'][i]
                 dither = str(self.info['dither'][i]).zfill(2)
 
-                yaml_names.append(os.path.abspath(os.path.join(self.output_dir, 'Act{}_{}_{}_Dither{}.yaml'
+                yaml_names.append(file_utils.abspath(os.path.join(self.output_dir, 'Act{}_{}_{}_Dither{}.yaml'
                                                                             .format(act, det, mode, dither))))
                 fits_names.append('Act{}_{}_{}_Dither{}_uncal.fits'.format(act, det, mode, dither))
 
@@ -1373,13 +1373,13 @@ class SimInput:
     def path_defs(self):
         """Expand input files to have full paths"""
         if self.input_xml is not None:
-            self.input_xml = os.path.abspath(os.path.expandvars(self.input_xml))
+            self.input_xml = file_utils.abspath(self.input_xml)
         if self.pointing_file is not None:
-            self.pointing_file = os.path.abspath(os.path.expandvars(self.pointing_file))
-        self.output_dir = os.path.abspath(os.path.expandvars(self.output_dir))
-        self.simdata_output_dir = os.path.abspath(os.path.expandvars(self.simdata_output_dir))
+            self.pointing_file = file_utils.abspath(self.pointing_file)
+        self.output_dir = file_utils.abspath(self.output_dir)
+        self.simdata_output_dir = file_utils.abspath(self.simdata_output_dir)
         if self.table_file is not None:
-            self.table_file = os.path.abspath(os.path.expandvars(self.table_file))
+            self.table_file = file_utils.abspath(self.table_file)
 
         ensure_dir_exists(self.output_dir)
         ensure_dir_exists(self.simdata_output_dir)
@@ -1396,9 +1396,9 @@ class SimInput:
         # self.linearity_config = self.set_config(self.linearity_config, 'linearity_config')
 
         if self.observation_list_file is not None:
-            self.observation_list_file = os.path.abspath(os.path.expandvars(self.observation_list_file))
+            self.observation_list_file = file_utils.abspath(self.observation_list_file)
         # if self.crosstalk not in [None, 'config']:
-        #     self.crosstalk = os.path.abspath(os.path.expandvars(self.crosstalk))
+        #     self.crosstalk = file_utils.abspath(self.crosstalk)
         # elif self.crosstalk == 'config':
         #     self.crosstalk = os.path.join(self.modpath, 'config', self.configfiles['crosstalk'])
 
@@ -1477,8 +1477,8 @@ class SimInput:
                 rawdark_dir = os.path.join(self.datadir, 'nircam/darks/raw')
                 lindark_dir = os.path.join(self.datadir, 'nircam/darks/linearized')
                 for det in self.det_list[instrument]:
-                    self.dark_list[instrument][det] = glob(os.path.join(rawdark_dir, det, '*.fits'))
-                    self.lindark_list[instrument][det] = glob(os.path.join(lindark_dir, det, '*.fits'))
+                    self.dark_list[instrument][det] = file_utils.glob(os.path.join(rawdark_dir, det, '*.fits'))
+                    self.lindark_list[instrument][det] = file_utils.glob(os.path.join(lindark_dir, det, '*.fits'))
 
             elif instrument in ['nirspec', 'miri']:
                 for key in 'subarray_def_file fluxcal filtpupil_pairs readpatt_def_file crosstalk ' \
@@ -1493,19 +1493,19 @@ class SimInput:
             else:  # niriss and fgs
                 for det in self.det_list[instrument]:
                     if det == 'G1':
-                        self.dark_list[instrument][det] = glob(os.path.join(self.datadir, 'fgs/darks/raw',
+                        self.dark_list[instrument][det] = file_utils.glob(os.path.join(self.datadir, 'fgs/darks/raw',
                                                                             '*30632_1x88_FGSF03511-D-NR-G1-5346180117_1_497_SE_2015-12-12T19h00m12_dms_uncal*.fits'))
-                        self.lindark_list[instrument][det] = glob(os.path.join(self.datadir, 'fgs/darks/linearized', '*_497_*fits'))
+                        self.lindark_list[instrument][det] = file_utils.glob(os.path.join(self.datadir, 'fgs/darks/linearized', '*_497_*fits'))
 
                     elif det == 'G2':
-                        self.dark_list[instrument][det] = glob(os.path.join(self.datadir, 'fgs/darks/raw',
+                        self.dark_list[instrument][det] = file_utils.glob(os.path.join(self.datadir, 'fgs/darks/raw',
                                                                             '*30670_1x88_FGSF03511-D-NR-G2-5346181816_1_498_SE_2015-12-12T21h31m01_dms_uncal*.fits'))
-                        self.lindark_list[instrument][det] = glob(os.path.join(self.datadir, 'fgs/darks/linearized', '*_498_*fits'))
+                        self.lindark_list[instrument][det] = file_utils.glob(os.path.join(self.datadir, 'fgs/darks/linearized', '*_498_*fits'))
 
                     elif det == 'NIS':
-                        self.dark_list[instrument][det] = glob(os.path.join(self.datadir, 'niriss/darks/raw',
+                        self.dark_list[instrument][det] = file_utils.glob(os.path.join(self.datadir, 'niriss/darks/raw',
                                                                             '*uncal.fits'))
-                        self.lindark_list[instrument][det] = glob(os.path.join(self.datadir, 'niriss/darks/linearized',
+                        self.lindark_list[instrument][det] = file_utils.glob(os.path.join(self.datadir, 'niriss/darks/linearized',
                                                                                '*linear_dark_prep_object.fits'))
 
     def set_config(self, file, prop):
@@ -1527,7 +1527,7 @@ class SimInput:
             Full path name to the input file
         """
         if file.lower() not in ['config']:
-            file = os.path.abspath(file)
+            file = file_utils.abspath(file)
         elif file.lower() == 'config':
             file = os.path.join(self.modpath, 'config', self.configfiles[prop])
         return file

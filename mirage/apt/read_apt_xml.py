@@ -7,11 +7,11 @@ import re
 from collections import OrderedDict
 
 from lxml import etree
-from astropy.io import ascii
 from astropy.table import Table, Column
 import numpy as np
 
 from ..utils.utils import append_dictionary
+from ..utils import file_utils
 
 APT_DIR = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 PACKAGE_DIR = os.path.dirname(APT_DIR)
@@ -92,7 +92,7 @@ class ReadAPTXML():
             unknown subarray specification
         """
         # Open XML file, get element tree of the APT proposal
-        with open(infile) as f:
+        with file_utils.open(infile) as f:
             tree = etree.parse(f)
 
         # Get high-level information: proposal info - - - - - - - - - - - - - -
@@ -1318,7 +1318,7 @@ class ReadAPTXML():
                     exp_seq_dict['ReadoutPattern'] = [grism_readpatt]
                     exp_seq_dict['Groups'] = [grism_groups]
                     exp_seq_dict['Integrations'] = [grism_integrations]
-                    exp_seq_dict['ShortPupil'] = [grism_shoprt_pupil]
+                    exp_seq_dict['ShortPupil'] = [grism_short_pupil]
                     exp_seq_dict['LongPupil'] = [grism_long_pupil]
                     exp_seq_dict['Grism'] = [grism]
                     exp_seq_dict['ObservationID'] = [proposal_param_dict['ObservationID']]
@@ -1762,7 +1762,7 @@ def get_guider_number(xml_file, observation_number):
     apt_namespace = '{http://www.stsci.edu/JWST/APT}'
     fgs_namespace = '{http://www.stsci.edu/JWST/APT/Template/FgsExternalCalibration}'
 
-    with open(xml_file) as f:
+    with file_utils.open(xml_file) as f:
         tree = etree.parse(f)
 
     observation_data = tree.find(apt_namespace + 'DataRequests')

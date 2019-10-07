@@ -36,6 +36,7 @@ from astropy.coordinates import SkyCoord
 from astroquery.vizier import Vizier
 
 from ..apt import apt_inputs
+from ..utils import file_utils
 
 SCRIPTS_DIR = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 PACKAGE_DIR = os.path.dirname(SCRIPTS_DIR)
@@ -109,7 +110,7 @@ def get_sw_catalog(target_coords, search_radius=15 * u.arcmin):
                                                                                         t.dec.degree))
 
         # Check that the shortwave catalog has not already been created
-        if os.path.isfile(catalog_filename_sw):
+        if file_utils.isfile(catalog_filename_sw):
             catalog_filenames_sw.append(catalog_filename_sw)
             if catalog_filename_sw not in catalog_filenames_sw[:i_obs]:
                 print('Shortwave catalog file {} already exists. Will not overwrite.'.\
@@ -175,7 +176,7 @@ def get_lw_catalog(target_coords, search_radius=15 * u.arcmin):
                                                                                        t.dec.degree))
 
         # Check that the shortwave catalog has not already been created
-        if os.path.isfile(catalog_filename_lw):
+        if file_utils.isfile(catalog_filename_lw):
             catalog_filenames_lw.append(catalog_filename_lw)
             if catalog_filename_lw not in catalog_filenames_lw[:i_obs]:
                 print('Longwave catalog file {} already exists. Will not overwrite.'.\

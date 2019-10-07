@@ -28,13 +28,12 @@ import os
 import argparse
 from math import floor
 
-import yaml
 import pkg_resources
 import numpy as np
-from astropy.io import fits, ascii
+from astropy.io import fits
 
 from mirage.reference_files import crds_tools
-from mirage.utils import read_fits, utils, siaf_interface
+from mirage.utils import read_fits, utils, siaf_interface, file_utils
 from mirage import version
 
 MIRAGE_VERSION = version.__version__
@@ -395,7 +394,7 @@ class DarkPrep():
         base for the simulated ramp"""
 
         # First make sure that the file exists
-        local = os.path.isfile(self.params['Reffiles']['dark'])
+        local = file_utils.isfile(self.params['Reffiles']['dark'])
         # Future improvement: download a missing dark file
         if not local:
             try:
@@ -804,8 +803,7 @@ class DarkPrep():
     def read_parameter_file(self):
         """Read in the yaml parameter file"""
         try:
-            with open(self.paramfile, 'r') as infile:
-                self.params = yaml.safe_load(infile)
+            self.params = file_utils.read_yaml(self.paramfile)
         except FileNotFoundError:
             print("WARNING: unable to open {}".format(self.paramfile))
 
@@ -816,7 +814,7 @@ class DarkPrep():
 
         # Read in readout pattern definition file
         # and make sure the possible readout patterns are in upper case
-        self.readpatterns = ascii.read(self.params['Reffiles']['readpattdefs'])
+        self.readpatterns = file_utils.read_ascii_table(self.params['Reffiles']['readpattdefs'])
         self.readpatterns['name'] = [s.upper() for s in self.readpatterns['name']]
 
         # If the requested readout pattern is in the table of options,
@@ -854,7 +852,7 @@ class DarkPrep():
         """
         rfile = self.params[rele[0]][rele[1]]
         if rfile.lower() != 'none':
-            c1 = os.path.isfile(rfile)
+            c1 = file_utils.isfile(rfile)
             if not c1:
                 raise FileNotFoundError(("WARNING: Unable to locate the {}, {} "
                                          "input file! Not present in {}"

@@ -54,6 +54,7 @@ from .utils import read_fits
 from .utils.constants import CATALOG_YAML_ENTRIES
 from .utils.utils import expand_environment_variable
 from .yaml import yaml_update
+from .utils import file_utils
 
 NIRCAM_GRISM_CROSSING_FILTERS = ['F322W2', 'F277W', 'F356W', 'F444W', 'F250M', 'F300M',
                                  'F335M', 'F360M', 'F410M', 'F430M', 'F323N', 'F405N',
@@ -277,7 +278,7 @@ class WFSSSim():
 
         # ###################Instrument Name##################
         if self.instrument not in ['nircam', 'niriss']:
-            self.invalid('instrument', instrument)
+            self.invalid('instrument', self.instrument)
 
         # ###################Module Name##################
         if self.instrument == 'nircam':
@@ -300,7 +301,7 @@ class WFSSSim():
 
         # ###################Dark File to Use##################
         if self.override_dark is not None:
-            avail = os.path.isfile(self.override_dark)
+            avail = file_utils.isfile(self.override_dark)
             if not avail:
                 raise FileNotFoundError(("WARNING: {} does not exist."
                                          .format(self.override_dark)))
@@ -312,8 +313,7 @@ class WFSSSim():
         self.catalog_files = []
         wfss_files_found = 0
         for i, pfile in enumerate(self.paramfiles):
-            with open(pfile, 'r') as infile:
-                params = yaml.safe_load(infile)
+            params = file_utils.read_yaml(pfile)
 
             cats = [params['simSignals'][cattype] for cattype in CATALOG_YAML_ENTRIES]
             cats = [e for e in cats if e.lower() != 'none']
@@ -383,8 +383,8 @@ class WFSSSim():
         """
         import yaml
         try:
-            with open(file, 'r') as infile:
-                data = yaml.load(infile)
+            with file_utils.open(file) as f:
+                data = yaml.load(f)
         except (FileNotFoundError, IOError) as e:
             print(e)
 
@@ -401,7 +401,7 @@ class WFSSSim():
         Detector gain map (2d numpy array)
         """
         try:
-            with fits.open(file) as h:
+            with file_utils.read_fits(file) as h:
                 image = h[1].data
                 header = h[0].header
         except (FileNotFoundError, IOError) as e:
@@ -448,7 +448,7 @@ class WFSSSim():
         # read in the file that contains a list of subarray
         # names and positions on the detector
         try:
-            subdict = ascii.read(subfile, data_start=1, header_start=0)
+            subdict = file_utils.read_ascii_table(subfile, data_start=1, header_start=0)
             return subdict
         except (FileNotFoundError, IOError) as e:
             print(e)

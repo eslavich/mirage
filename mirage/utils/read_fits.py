@@ -22,8 +22,8 @@ detector - instrument.detector DETECTOR
 instrument - instrument.name INSTRUME
 '''
 import numpy as np
-from astropy.io import fits
 from jwst.datamodels import RampModel
+from . import file_utils
 
 
 class Read_fits():
@@ -57,7 +57,7 @@ class Read_fits():
 
     def read_astropy(self):
 
-        h = fits.open(self.file)
+        h = file_utils.read_fits(self.file)
 
         self.data = None
         self.zeroframe = None
@@ -89,7 +89,7 @@ class Read_fits():
 
     def read_datamodel(self):
 
-        h = RampModel(self.file)
+        h = RampModel(file_utils.read_fits(self.file))
 
         #remove any non-pipeline related keywords (e.g. CV3 temps/voltages)
         if 'extra_fits' in dir(h):
@@ -123,7 +123,7 @@ class Read_fits():
         #and insert the data and self.header metadata
         #into it
 
-        h = RampModel(subfile)
+        h = RampModel(file_utils.read_fits(subfile))
         h.data = self.data
         try:
             h.zeroframe = self.zeroframe

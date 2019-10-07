@@ -22,4 +22,3 @@ blot.center_ra = [53.122751,53.122751]
 blot.center_dec = [-27.805089,-27.805089]
 blot.pav3 = [0.,12.]
 blot.blot()
-

@@ -30,7 +30,7 @@ from webbpsf.gridded_library import CreatePSFLibrary
 from webbpsf.utils import to_griddedpsfmodel
 
 from mirage.psf.psf_selection import get_library_file
-
+from mirage.utils import file_utils
 
 def generate_segment_psfs(ote, segment_tilts, out_dir, filters=['F212N', 'F480M'],
                           detectors='all', fov_pixels=1024, overwrite=False):
@@ -184,7 +184,7 @@ def get_gridded_segment_psf_library_list(instrument, detector, filtername,
 
     libraries = []
     for filename in library_list:
-        with fits.open(filename) as hdulist:
+        with file_utils.read_fits(filename) as hdulist:
         #     hdr = hdulist[0].header
         #     d = hdulist[0].data
         #
@@ -267,7 +267,8 @@ def get_segment_offset(segment_number, detector, library_list):
 
     # Verify that the segment number in the header matches the index
     seg_index = int(segment_number) - 1
-    header = fits.getheader(library_list[seg_index])
+    with file_utils.open(library_list[seg_index], "rb") as f:
+        header = fits.getheader(f)
 
     assert int(header['SEGID']) == int(segment_number), \
         "Uh-oh. The segment ID of the library does not match the requested " \

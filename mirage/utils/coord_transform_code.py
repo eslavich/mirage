@@ -1,12 +1,12 @@
 # SIAF file - I got an excel file from Colin that I saved as a csv
 
-from astropy.io import ascii
 import numpy as np
+from . import file_utils
 
 siaf_file = '/ifs/jwst/wit/witserv/data4/nrc/hilbert/simulated_data/NIRCam_SIAF_2017-03-28.csv'
 
 # Read in SIAF
-siaf = ascii.read(siaf_file,header_start=1)
+siaf = file_utils.read_ascii_table(siaf_file, header_start=1)
 
 # Find the desired row of the SIAF based on
 # aperture name (e.g. "NRCA1_FULL")
@@ -28,4 +28,3 @@ x = [1024,1032]
 y = [1024,1000]
 x_ideal = sci2idlx(x,y)
 y_ideal = sci2idly(x,y)
-

@@ -7,9 +7,10 @@ Use in conjunction with crop_mosaic.py
 '''
 import sys
 import os
-import glob
 from copy import copy
+import argparse
 
+import numpy as np
 import gwcs
 from astropy.io import fits
 from jwst import datamodels
@@ -18,7 +19,7 @@ from jwst.assign_wcs import AssignWcsStep
 from jwst.datamodels import container
 
 from ..utils import set_telescope_pointing_separated as stp
-
+from ..utils import file_utils
 
 class Blot():
 
@@ -28,7 +29,7 @@ class Blot():
         self.center_dec = [0.]
         self.pav3 = [0.]
         self.outfile = None
-        self.distfiles = glob.glob(os.path.join(self.distortion_dir,'NRC*FULL_distortion.asdf'))
+        self.distfiles = file_utils.glob(os.path.join(self.distortion_dir,'NRC*FULL_distortion.asdf'))
 
         # Pixel scales for the NIRCam detectors
         self.nrc_scale = {'A1':(0.0311,0.0313),
@@ -88,7 +89,7 @@ class Blot():
             sys.exit()
 
         if type(self.blotfile) == str:
-            input_mod = datamodels.ImageModel(self.blotfile)
+            input_mod = datamodels.ImageModel(file_utils.read_fits(self.blotfile)))
             outbase = self.blotfile
 
             # Create a GWCS object from the input file's header
@@ -110,7 +111,8 @@ class Blot():
             sys.exit()
 
         # Create a GWCS object from the input file's header
-        input_header = fits.getheader(self.blotfile,ext=1)
+        with file_utils.open(self.blotfile, "rb") as f:
+            input_header = fits.getheader(f,ext=1)
         transform = gwcs.utils.make_fitswcs_transform(input_header)
         input_mod.meta.wcs = gwcs.WCS(forward_transform=transform,output_frame='world')
         # Filter and pupil information
@@ -149,7 +151,7 @@ class Blot():
             # angle and PC matrix
             stp.add_wcs(shellname,roll=roll)
 
-            bmodel = datamodels.open(shellname)
+            bmodel = datamodels.open(file_utils.read_fits(shellname))
 
             # Now we need to run assign_wcs step so that these
             # files get a gwcs object attached to them.
@@ -228,7 +230,7 @@ class Blot():
             parser = argparse.ArgumentParser(usage=usage,description='Extract SCA-sized area from moasic')
         parser.add_argument("blotfile",help="Filename or model instance name of fits file containing mosaic.")
         #parser.add_argument("--blotmodel",help="Datamodel containing array to blot",default=None)
-        mirage_data = os.path.abspath(os.path.expandvars(self.env_var))
+        mirage_data = file_utils.abspath(self.env_var)
         distortion_default = os.path.join(mirage_data, 'reference_files/distortion/')
         parser.add_argument("--distortion_dir", help="Directory containing distortion reference files for the appropriate instrument.", default=distortion_default)
         parser.add_argument("--detector",help="NIRCam detectors to blot to. Multiple inputs ok. (e.g. A1 A5)",nargs='*')
@@ -246,4 +248,3 @@ if __name__ == '__main__':
     parser = b.add_options(usage = usagestring)
     args = parser.parse_args(namespace=b)
     b.blot()
-

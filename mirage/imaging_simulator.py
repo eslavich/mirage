@@ -25,7 +25,6 @@ HISTORY:
 13 July 2018 - updated for name change to Mirage, Bryan Hilbert
 '''
 
-import os
 import argparse
 
 from .seed_image import catalog_seed_image

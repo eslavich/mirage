@@ -34,11 +34,11 @@ import copy
 from math import radians
 import datetime
 import warnings
+import argparse
 
-import yaml
 import pkg_resources
 import numpy as np
-from astropy.io import fits, ascii
+from astropy.io import fits
 from astropy.table import Table
 from astropy.time import Time, TimeDelta
 import pysiaf
@@ -49,6 +49,7 @@ from mirage.utils import read_fits, utils, siaf_interface
 from mirage.utils import set_telescope_pointing_separated as stp
 from mirage.utils.constants import EXPTYPES
 from mirage import version
+from mirage.utils import file_utils
 
 MIRAGE_VERSION = version.__version__
 
@@ -273,7 +274,8 @@ class Observation():
         except:
             # If add_ipc has not been called yet, then read in the
             # kernel from the specified file.
-            kernel = fits.getdata(self.params['Reffiles']['ipc'])
+            with file_utils.open(self.params['Reffiles']['ipc'], "rb") as f:
+                kernel = fits.getdata(f)
             # Invert the kernel if requested, to go from a kernel
             # designed to remove IPC effects to one designed to
             # add IPC effects
@@ -844,7 +846,7 @@ class Observation():
 
         # Make sure the requested output format is an allowed value
         if self.params['Output']['format'] not in ['DMS']:
-            raise NotImplemmentedError(("WARNING: unsupported output format {} requested. "
+            raise NotImplementedError(("WARNING: unsupported output format {} requested. "
                                         "Possible options are {}."
                                         .format(self.params['Output']['format'], ['DMS'])))
 
@@ -1297,7 +1299,7 @@ class Observation():
 
         # pixel dq extension - populate using the mask reference file
         if self.runStep['badpixfile']:
-            mask_hdu = fits.open(self.params['Reffiles']['badpixmask'])
+            mask_hdu = file_utils.read_fits(self.params['Reffiles']['badpixmask'])
             mask = mask_hdu[1].data
             dqdef = mask_hdu[2].data
             mask_hdu.close()
@@ -2038,7 +2040,7 @@ class Observation():
 
         print(pth)
 
-        c1 = os.path.exists(pth)
+        c1 = file_utils.exists(pth)
         if not c1:
             raise NotADirectoryError(("WARNING: Unable to find the requested path "
                                       "{}. Not present in directory tree specified by "
@@ -2160,7 +2162,7 @@ class Observation():
             Information from file header
         """
         try:
-            with fits.open(filename) as h:
+            with file_utils.read_fits(filename) as h:
                 image = h[1].data
                 header = h[0].header
         except FileNotFoundError:
@@ -2190,7 +2192,7 @@ class Observation():
             idx = '_%2.2d_' % (i)
             str1 = idx + self.params['cosmicRay']['suffix'] + '.fits'
             name = self.crfile + str1
-            with fits.open(name) as h:
+            with file_utils.read_fits(name) as h:
                 im = h[1].data
                 head = h[0].header
             self.cosmicrays.append(im)
@@ -2213,7 +2215,7 @@ class Observation():
         xtcoeffs : list
             Collection of crosstalk coefficients associated with detector
         """
-        xtcoeffs = ascii.read(file, header_start=0)
+        xtcoeffs = file_utils.read_ascii_table(file, header_start=0)
 
         coeffs = []
         mtch = xtcoeffs['Det'] == detector.upper()
@@ -2261,8 +2263,7 @@ class Observation():
     def read_parameter_file(self):
         """Read in the yaml parameter file (main input to Mirage)."""
         try:
-            with open(self.paramfile, 'r') as infile:
-                self.params = yaml.safe_load(infile)
+            self.params = file_utils.read_yaml(self.paramfile)
         except FileNotFoundError as e:
             print("WARNING: unable to open {}".format(self.paramfile))
         if self.params['Inst']['instrument'].lower() == 'niriss':
@@ -2310,7 +2311,7 @@ class Observation():
         seedheader : list
             Information from the header of the seed image file
         """
-        with fits.open(filename) as h:
+        with file_utils.read_fits(filename) as h:
             seed = h[1].data
             seedheader = h[0].header
             try:
@@ -2340,7 +2341,7 @@ class Observation():
 
         # Read in readout pattern definition file
         # and make sure the possible readout patterns are in upper case
-        self.readpatterns = ascii.read(self.params['Reffiles']['readpattdefs'])
+        self.readpatterns = file_utils.read_ascii_table(self.params['Reffiles']['readpattdefs'])
         self.readpatterns['name'] = [s.upper() for s in self.readpatterns['name']]
 
         # If the requested readout pattern is in the table of options,
@@ -2395,8 +2396,8 @@ class Observation():
         """
         rfile = self.params[rele[0]][rele[1]]
         if rfile.lower() != 'none':
-            rfile = os.path.abspath(rfile)
-            c1 = os.path.isfile(rfile)
+            rfile = file_utils.abspath(rfile)
+            c1 = file_utils.isfile(rfile)
             if not c1:
                 raise FileNotFoundError(("WARNING: Unable to locate the {}, {} "
                                          "input file! Not present in {}"
@@ -2569,7 +2570,7 @@ class Observation():
         outModel.meta.observation.time = self.params['Output']['time_obs']
 
         if self.runStep['fwpw']:
-            fwpw = ascii.read(self.params['Reffiles']['filtpupilcombo'])
+            fwpw = file_utils.read_ascii_table(self.params['Reffiles']['filtpupilcombo'])
         else:
             print(("WARNING: Filter wheel element/pupil wheel element combo reffile not specified. "
                    "Proceeding by saving {} in FILTER keyword, and {} in PUPIL keyword".
@@ -2854,7 +2855,7 @@ class Observation():
         outModel[0].header['TIME-OBS'] = self.params['Output']['time_obs']
 
         if self.runStep['fwpw']:
-            fwpw = ascii.read(self.params['Reffiles']['filtpupilcombo'])
+            fwpw = file_utils.read_ascii_table(self.params['Reffiles']['filtpupilcombo'])
         else:
             print(("WARNING: Filter wheel element/pupil wheel element combo reffile not specified. "
                    "Proceeding by saving {} in FILTER keyword, and {} in PUPIL keyword".
@@ -2959,7 +2960,8 @@ class Observation():
             Array populated with the file contents
         """
         try:
-            image, header = fits.getdata(name, header=True)
+            with file_utils.open(name, "rb") as f:
+                image, header = fits.getdata(f, header=True)
         except:
             raise FileNotFoundError('WARNING: unable to read in {}'.format(name))
 

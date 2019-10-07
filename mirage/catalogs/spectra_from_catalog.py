@@ -26,7 +26,6 @@ import copy
 import os
 import pkg_resources
 
-from astropy.io import ascii
 import astropy.units as u
 import numpy as np
 from scipy.interpolate import interp1d
@@ -34,6 +33,7 @@ from scipy.interpolate import interp1d
 from . import hdf5_catalog
 from mirage.utils.constants import FLAMBDA_CGS_UNITS, FNU_CGS_UNITS
 from mirage.utils.utils import magnitude_to_countrate
+from mirage.utils import file_utils
 
 MODULE_PATH = pkg_resources.resource_filename('mirage', '')
 CONFIG_PATH = os.path.join(MODULE_PATH, 'config')
@@ -275,7 +275,7 @@ def get_filter_info(column_names, magsys):
     zp_file = ZEROPOINT_FILES[instrument]
 
     # Read in the file
-    zp_table = ascii.read(zp_file)
+    zp_table = file_utils.read_ascii_table(zp_file)
 
     magsys = magsys.upper()
     info = {}
@@ -433,7 +433,7 @@ def read_catalog(filename):
         Magnitude system (e.g. 'abmag', 'stmag', 'vegamag') of the
         source magnitudes in the catalog
     """
-    catalog = ascii.read(filename)
+    catalog = file_utils.read_ascii_table(filename)
 
     # Check to be sure index column is present
     if 'index' not in catalog.colnames:

@@ -3,12 +3,11 @@
 """
 Class to generate PSFs to be used with Mirage
 """
-import os
-
 import numpy as np
 from astropy.io import fits
 from photutils.psf import FittableImageModel
 
+from ..utils import file_utils
 
 class PSF():
     def __init__(self, x_position, y_position, psf_base,
@@ -44,7 +43,7 @@ class PSF():
         psf_filename = self.find_subpix_psf_filename(x_position, y_position, psf_base)
 
         # Check for the existence of the file
-        if os.path.isfile(psf_filename):
+        if file_utils.isfile(psf_filename):
             try:
                 # Place PSF in FittableImageModel
                 self.model = self.populate_epsfmodel(psf_filename, oversample=oversampling)
@@ -148,7 +147,8 @@ class PSF():
         psf : obj
             FittableImageModel instance
         """
-        psf_data = fits.getdata(infile)
+        with file_utils.open(infile, "rb") as f:
+            psf_data = fits.getdata(f)
 
         # Normalize
         psf_data /= np.sum(psf_data)

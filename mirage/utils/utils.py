@@ -23,9 +23,8 @@ import json
 import os
 import re
 
-from astropy.io import ascii as asc
-
 from mirage.utils.constants import CRDS_FILE_TYPES, NIRISS_FILTER_WHEEL_FILTERS, NIRISS_PUPIL_WHEEL_FILTERS
+from . import file_utils
 
 
 def append_dictionary(base_dictionary, added_dictionary, braid=False):
@@ -234,7 +233,7 @@ def expand_environment_variable(variable_name, offline=False):
                           "These files must be downloaded separately "
                           "from the Mirage package.".format(variable_name)))
     if not offline:
-        if not os.path.isdir(variable_directory):
+        if not file_utils.isdir(variable_directory):
             raise FileNotFoundError(("The directory contained in the {} "
                                      "environment variable: {} does not exist or "
                                      "is not accessible.".format(variable_name, variable_directory)))
@@ -325,7 +324,7 @@ def full_paths(params, module_path, crds_dictionary, offline=False):
     for key1 in pathdict:
         for key2 in pathdict[key1]:
             if params[key1][key2].lower() not in ['none', 'config', 'crds']:
-                params[key1][key2] = os.path.abspath(os.path.expandvars(params[key1][key2]))
+                params[key1][key2] = file_utils.abspath(params[key1][key2])
             elif params[key1][key2].lower() == 'config':
                 cfile = config_files['{}-{}'.format(key1, key2)]
                 fpath = os.path.join(module_path, 'config', cfile)
@@ -346,7 +345,7 @@ def full_paths(params, module_path, crds_dictionary, offline=False):
                     inverted_kernel_file = os.path.join(ipc_path, 'Kernel_to_add_IPC_effects_from_{}'.format(ipc_file))
                     # Check to see if the version of the IPC file with an
                     # inverted kernel already exists.
-                    if os.path.isfile(inverted_kernel_file):
+                    if file_utils.isfile(inverted_kernel_file):
                         print("Found an existing inverted kernel for this IPC file: {}".format(inverted_kernel_file))
                         params[key1][key2] = inverted_kernel_file
                         params['Reffiles']['invertIPC'] = False
@@ -380,7 +379,7 @@ def get_siaf():
     package_dir = os.path.dirname(utils_dir)
     config_file = os.path.join(package_dir, 'config', 'siaf_config.json')
 
-    with open(config_file, 'r') as config_file:
+    with file_utils.open(config_file, 'r') as config_file:
         siaf_files = json.load(config_file)
 
     return siaf_files
@@ -391,7 +390,7 @@ def get_aperture_definition(aperture_name, instrument):
     '''
 
     siaf_file = get_siaf()[instrument]
-    siaf_table = asc.read(siaf_file, header_start=1)
+    siaf_table = file_utils.read_ascii_table(siaf_file, header_start=1)
     row_ind = list(siaf_table['AperName']).index(aperture_name)
     siaf_row = siaf_table[row_ind]
 
@@ -593,7 +592,7 @@ def read_subarray_definition_file(filename):
         Table containing subarray information
     """
     try:
-        data = asc.read(filename, data_start=1, header_start=0)
+        data = file_utils.read_ascii_table(filename, data_start=1, header_start=0)
     except:
         raise RuntimeError(("Error: could not read in subarray definitions file: {}"
                             .format(filename)))

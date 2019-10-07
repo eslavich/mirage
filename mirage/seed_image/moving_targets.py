@@ -31,7 +31,6 @@ Bryan Hilbert
 import sys
 
 import numpy as np
-from astropy.io import fits
 
 class MovingTarget():
 

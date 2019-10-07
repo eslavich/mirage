@@ -149,13 +149,14 @@ import os
 import sys
 import argparse
 
-import yaml
 import pkg_resources
 import numpy as np
 from math import radians
-from astropy.io import fits, ascii
+from astropy.io import fits,
+from photutils import detect_sources
 
 from . import crop_mosaic, blot_image
+from ..utils import file_utils
 
 config_files = {'subarray_defs':'NIRCam_subarray_definitions.list',
                 'flux_cal':'NIRCam_zeropoints.list'}
@@ -207,9 +208,8 @@ class ImgSeed:
         yaml files for the other mirage
         steps, read in and set needed parameters'''
 
-        if os.path.isfile(file):
-            with open(file,'r') as f:
-                params = yaml.safe_load(f)
+        if file_utils.isfile(file):
+            params = file_utils.read_yaml(file)
         else:
             print(("WARNING: {} does not exist."
                    .format(file)))
@@ -247,7 +247,7 @@ class ImgSeed:
 
     def fluxcal_info(self, fluxfile, filter, module):
         # Read in list of zeropoints/photflam/photfnu
-        self.zps = ascii.read(fluxfile)
+        self.zps = file_utils.read_ascii_table(fluxfile)
         mtch = ((self.zps['Filter'] == filter) \
                 & (self.zps['Module'] == module))
         self.photflam = self.zps['PHOTFLAM'][mtch][0]
@@ -289,7 +289,7 @@ class ImgSeed:
         of subarray names and positions on the detector
         '''
         try:
-            self.subdict = ascii.read(file,data_start=1,header_start=0)
+            self.subdict = file_utils.read_ascii_table(file,data_start=1,header_start=0)
         except:
             print("Error: could not read in subarray definitions file:")
             print(file)
@@ -375,6 +375,7 @@ class ImgSeed:
         dim = len(self.seed_image.shape)
         if dim == 2:
             units = 'e-/sec'
+            # TODO(eslavich): Where should this come from?
             yd,xd = arrayshape
             tgroup = 0.
         else:
@@ -483,7 +484,7 @@ if __name__ == '__main__':
 
     usagestring = 'USAGE: fits_seed_image.py inputs.yaml'
 
-    seed = Imgseed()
+    seed = ImgSeed()
     parser = seed.add_options(usage = usagestring)
     args = parser.parse_args(namespace=seed)
     seed.read_param_file(args.paramfile)
